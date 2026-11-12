@@ -1,5 +1,14 @@
 # shohon-framing-bbox
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nakamura196/shohon-framing-bbox/blob/main/notebooks/try_in_colab.ipynb)
+[![CI](https://github.com/nakamura196/shohon-framing-bbox/actions/workflows/ci.yml/badge.svg)](https://github.com/nakamura196/shohon-framing-bbox/actions/workflows/ci.yml)
+
+![Boxes drawn by shohon-bbox: book (blue), colour chart (green), ruler (red) and imaging slip (orange)](docs/example.jpg)
+
+*Output of `shohon-bbox detect` on* Ise monogatari, *Keio University Library Fujikawa Collection
+(Kokusho Database `bid` 300120319, frame 2; CC BY 4.0). To try it on this or your own image without
+installing anything, open the notebook in Google Colab with the button above.*
+
 Boxes for the **book**, **colour charts**, **rulers** and **imaging slips** in digitized images of
 books, without training a detector for the task.
 
