@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software or data, please cite it as below."
+title: "shohon-framing-bbox: boxes for books, colour charts, rulers and imaging slips in digitized book images"
+type: software
+version: 0.1.0
+date-released: 2026-11-13
+license: MIT
+repository-code: "https://github.com/nakamura196/shohon-framing-bbox"
+authors:
+  - family-names: Nakamura
+    given-names: Satoru
+    affiliation: The University of Tokyo
+    orcid: "https://orcid.org/0000-0001-8245-7925"
+keywords:
+  - IIIF
+  - digital humanities
+  - object detection
+  - colour chart
+  - Japanese classical books

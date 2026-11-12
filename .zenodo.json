@@ -1,0 +1,12 @@
+{
+  "title": "shohon-framing-bbox: boxes for books, colour charts, rulers and imaging slips in digitized book images",
+  "upload_type": "software",
+  "creators": [
+    {"name": "Nakamura, Satoru", "affiliation": "The University of Tokyo", "orcid": "0000-0001-8245-7925"}
+  ],
+  "license": "MIT",
+  "keywords": ["IIIF", "digital humanities", "object detection", "colour chart", "Japanese classical books"],
+  "related_identifiers": [
+    {"identifier": "10.5281/zenodo.24152375", "relation": "references", "scheme": "doi", "resource_type": "dataset"}
+  ]
+}

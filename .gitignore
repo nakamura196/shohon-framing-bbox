@@ -1,0 +1,36 @@
+# env / secret files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.kdbx
+credentials.json
+service-account*.json
+gha-creds-*.json
+.npmrc
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/settings.json
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+
+# local outputs
+results/
+images/
+paper/.cache/
+.ultralytics/
+*.pt
+uv.lock

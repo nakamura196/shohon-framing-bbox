@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shohon-bbox"
+dynamic = ["version"]
+description = "Boxes for books, colour charts, rulers and imaging slips in digitized book images, from open-vocabulary detectors and spatial rules"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Satoru Nakamura", email = "nakamura.satoru@mail.u-tokyo.ac.jp" }]
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["IIIF", "digital humanities", "object detection", "colour chart", "Japanese classical books"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+[project.optional-dependencies]
+detect = [
+  "torch>=2.2",
+  "transformers>=4.51,<5",
+  "ultralytics>=8.3,<9",
+  "huggingface_hub>=0.24",
+  "pillow>=10",
+  "scipy>=1.11",
+]
+test = ["pytest>=8"]
+
+[project.scripts]
+shohon-bbox = "shohon_bbox.cli:main"
+
+[project.urls]
+Repository = "https://github.com/nakamura196/shohon-framing-bbox"
+
+[tool.setuptools.dynamic]
+version = { attr = "shohon_bbox.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

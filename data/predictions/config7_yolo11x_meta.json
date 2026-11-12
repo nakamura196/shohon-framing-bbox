@@ -1,0 +1,25 @@
+{
+ "epochs": 200,
+ "imgsz": 1024,
+ "batch": 8,
+ "nbs": 8,
+ "conf_op": 0.25,
+ "conf_raw": 0.05,
+ "nms_iou": 0.5,
+ "tag": "yolo11x",
+ "weights": "yolo11x.pt",
+ "device": "0",
+ "gpu": "NVIDIA A100-SXM4-40GB",
+ "ultralytics": "8.4.119",
+ "torch": "2.13.0+cu130",
+ "seed": 20261111,
+ "fold_train_seconds": [
+  1038.2,
+  1047.3,
+  1042.0,
+  1040.2,
+  1042.2
+ ],
+ "infer_mean_sec": 0.0194,
+ "images": 102
+}
