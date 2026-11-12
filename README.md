@@ -20,7 +20,8 @@ The repository contains
   Web Annotation output, and the scoring used in the paper (`evaluate`)
 - `data/` — the dataset of the paper (CC BY 4.0): ground truth for 102 images, blind annotations of
   20 images by two annotators, the raw detector outputs and the predictions of all seven configurations
-- `paper/` — the script that reproduces the paper's tables from `data/`
+- `paper/` — the script that reproduces the paper's tables from `data/`, and one that downloads the
+  102 evaluation images from their IIIF servers and checks them against the recorded SHA-256
 - `notebooks/try_in_colab.ipynb` — a notebook to try the detector on one image
 
 ## Install
