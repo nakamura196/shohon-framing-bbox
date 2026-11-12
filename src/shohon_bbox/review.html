@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shohon-bbox review</title>
+<style>
+  :root {
+    --bg: #f1f5f9; --fg: #0f172a; --muted: #475569; --line: #cbd5e1;
+    --c-book: #0055ff; --c-chart: #00a83f; --c-ruler: #e61919; --c-slip: #ea6a00;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--fg); overflow: hidden; display: flex; flex-direction: column; }
+  header {
+    flex: none; background: #fff; border-bottom: 1px solid var(--line); padding: 6px 12px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px;
+  }
+  header button, header select { font-size: 13px; padding: 4px 9px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; cursor: pointer; }
+  header button:hover:not(:disabled) { background: #e2e8f0; }
+  header button:disabled, header select:disabled { opacity: 0.45; cursor: not-allowed; }
+  .cls-group { display: inline-flex; gap: 4px; align-items: center; background: #f1f5f9; padding: 3px 6px; border-radius: 6px; border: 1px solid #cbd5e1; }
+  .cls-btn { font-weight: bold; color: #fff; border: 2px solid transparent !important; border-radius: 4px; padding: 3px 8px; opacity: 0.72; }
+  .cls-btn.active { opacity: 1; border-color: #0f172a !important; box-shadow: 0 0 0 2px rgba(15,23,42,0.2); }
+  .cls-book { background: var(--c-book) !important; }
+  .cls-chart { background: var(--c-chart) !important; }
+  .cls-ruler { background: var(--c-ruler) !important; }
+  .cls-slip { background: var(--c-slip) !important; }
+  #status { margin-left: auto; font-weight: bold; color: #0369a1; }
+  #subbar {
+    flex: none; background: #f8fafc; border-bottom: 1px solid var(--line); padding: 4px 12px;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 12px; color: var(--muted);
+  }
+  #main { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+  #wrap { flex: 1; overflow: auto; padding: 10px; display: flex; justify-content: center; align-items: flex-start; }
+  #wrap.pan { cursor: grab; }
+  #stage { position: relative; display: inline-block; user-select: none; box-shadow: 0 2px 10px rgba(0,0,0,0.15); background: #000; }
+  #stage img { display: block; }
+  svg { position: absolute; left: 0; top: 0; }
+  #sidebar {
+    width: 310px; flex: none; background: #fff; border-left: 1px solid var(--line);
+    display: flex; flex-direction: column; padding: 10px; gap: 8px; overflow-y: auto; font-size: 12.5px;
+  }
+  .box-item {
+    display: flex; justify-content: space-between; align-items: center; padding: 5px 8px;
+    border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; background: #f8fafc;
+  }
+  .box-item.sel { border: 2px solid #0f172a; background: #eff6ff; font-weight: bold; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 3px; color: #fff; font-size: 11px; font-weight: bold; }
+  rect.b { fill: rgba(255,255,255,0.04); pointer-events: all; stroke-width: 2.5; cursor: move; }
+  rect.b.sel { stroke-width: 4; fill: rgba(255,255,255,0.15); stroke-dasharray: none; }
+  circle.h { fill: #fff; stroke: #0f172a; stroke-width: 2; cursor: nwse-resize; }
+  rect.draft { fill: rgba(0,85,255,0.12); stroke: #0f172a; stroke-dasharray: 5 3; stroke-width: 2; }
+  kbd { background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 3px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <button id="prev">← Prev</button>
+  <select id="filter">
+    <option value="all">All images</option>
+    <option value="unverified">Not yet verified</option>
+    <option value="blind_done">Drawn blind</option>
+    <option value="local">Local image</option>
+    <option value="ruler">With ruler</option>
+    <option value="chart">With colour chart</option>
+    <option value="slip">With imaging slip</option>
+  </select>
+  <select id="jump" style="max-width:230px;"></select>
+  <button id="next">Next →</button>
+  <label style="font-weight:bold; color:#065f46; background:#d1fae5; padding:3px 8px; border-radius:4px; border:1px solid #6ee7b7; cursor:pointer;">
+    <input type="checkbox" id="fin"> Verified
+  </label>
+  <button id="finNext" style="font-weight:bold; color:#fff; background:#059669; border:1px solid #047857; padding:4px 12px; border-radius:4px; cursor:pointer;">✓ Verify and next (Enter)</button>
+  <label style="font-weight:bold; color:#7c2d12; background:#ffedd5; padding:3px 8px; border-radius:4px; border:1px solid #fdba74; cursor:pointer;" title="Draw on a blank image without drafts or scores; saved to a separate file">
+    <input type="checkbox" id="blindMode"> Blind mode (no drafts)
+  </label>
+
+  <div class="cls-group">
+    <span>Class (<kbd>1</kbd>–<kbd>4</kbd>):</span>
+    <button class="cls-btn cls-book active" data-cls="book">1: book</button>
+    <button class="cls-btn cls-chart" data-cls="colour_chart">2: colour_chart</button>
+    <button class="cls-btn cls-ruler" data-cls="ruler">3: ruler</button>
+    <button class="cls-btn cls-slip" data-cls="imaging_slip">4: imaging_slip</button>
+  </div>
+
+  <span>Draft:</span>
+  <select id="modelSrc"></select>
+  <button id="resetModel">Reset to this draft</button>
+  <button id="cycleBook" title="Replace the book box with the next candidate from Grounding DINO, OWLv2 or YOLOv8-NDL-Layout">Next book candidate</button>
+  <button id="copyUrl" title="Copy the URL of this image">Copy URL</button>
+
+  <button id="del">Delete (Del)</button>
+  <button id="undo">Undo (⌘Z)</button>
+  <span id="status">Loading…</span>
+</header>
+<div id="subbar">
+  <span id="metaInfo">-</span>
+  <span>Zoom: <select id="zoom"><option value="1" selected>Fit</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="3">3×</option></select></span>
+  <span>Brightness: <input type="range" id="bri" min="0.4" max="1.8" step="0.05" value="1" style="width:70px"></span>
+  <span>Contrast: <input type="range" id="con" min="0.5" max="2.5" step="0.05" value="1" style="width:70px"></span>
+  <button id="lightReset" style="font-size:11px; padding:1px 6px;">Reset</button>
+  <span style="margin-left:auto;">Drag on the image: new box. With a box selected, <kbd>1</kbd>–<kbd>4</kbd>: change class. Drag a corner: resize. <kbd>Space</kbd>+drag: pan. <kbd>←</kbd><kbd>→</kbd>: previous / next. <kbd>Enter</kbd>: verify and next</span>
+</div>
+<div id="main">
+  <div id="wrap"><div id="stage"><img id="img" alt=""><svg id="svg"></svg></div></div>
+  <div id="sidebar">
+    <div style="font-weight:bold; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">Boxes on this image (<span id="boxCount">0</span>)</div>
+    <div id="boxList" style="display:flex; flex-direction:column; gap:5px;"></div>
+    <hr style="border:none; border-top:1px solid #e2e8f0; width:100%;">
+    <div style="font-weight:bold;">Progress</div>
+    <div id="statsBox" style="font-size:12px; line-height:1.6; background:#f8fafc; padding:8px; border-radius:4px; border:1px solid #e2e8f0;"></div>
+  </div>
+</div>
+<script>
+const COLORS = {
+  book: "#0055ff",
+  colour_chart: "#00a83f",
+  ruler: "#e61919",
+  imaging_slip: "#ea6a00"
+};
+let FRAMES = [], FILTERED = [], PREDS = {};
+let GOLD_STATE = { boxes: {}, verified: {}, modified: {}, sizes: {} };
+let BLIND_STATE = { boxes: {}, verified: {}, modified: {}, sizes: {} };
+let blindMode = false;
+let curIdx = 0, sel = -1, activeCls = "book", hist = [], drag = null, space = false;
+const $ = id => document.getElementById(id);
+const img = $("img"), svg = $("svg");
+const NS = "http://www.w3.org/2000/svg";
+
+function activeState() {
+  return blindMode ? BLIND_STATE : GOLD_STATE;
+}
+
+function boxIou(a, b) {
+  const x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+  const x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  const ua = Math.max(0, a[2] - a[0]) * Math.max(0, a[3] - a[1]);
+  const ub = Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+  const u = ua + ub - inter;
+  return u > 0 ? inter / u : 0;
+}
+
+async function init() {
+  FRAMES = await (await fetch("/frames.json")).json();
+  PREDS = await (await fetch("/predictions.json")).json();
+  const s = await (await fetch("/state")).json();
+  GOLD_STATE.boxes = s.boxes || {};
+  GOLD_STATE.verified = s.verified || {};
+  GOLD_STATE.modified = s.modified || {};
+  GOLD_STATE.sizes = s.sizes || {};
+
+  try {
+    const bs = await (await fetch("/blind_state")).json();
+    BLIND_STATE.boxes = bs.boxes || {};
+    BLIND_STATE.verified = bs.verified || {};
+    BLIND_STATE.modified = bs.modified || {};
+    BLIND_STATE.sizes = bs.sizes || {};
+  } catch (e) {}
+
+  buildDraftMenu();
+  // A new image starts from the first available draft (Configuration 6, else 5, ...)
+  for (const f of FRAMES) {
+    const p = PREDS[f.key] || {};
+    const m = DRAFT_ORDER.find(n => Array.isArray(p[n])) || Object.keys(p).find(n => Array.isArray(p[n]));
+    const initBoxes = m ? p[m] : null;
+    if (!GOLD_STATE.boxes[f.key] && initBoxes) {
+      GOLD_STATE.boxes[f.key] = JSON.parse(JSON.stringify(initBoxes));
+    }
+  }
+  const params = new URLSearchParams(location.search);
+  const wantKey = params.get("key");
+  const wantIdx = parseInt(params.get("idx") || params.get("slide") || "0", 10);
+  if (params.get("blind") === "1") {
+    blindMode = true;
+    $("blindMode").checked = true;
+    syncBlindControls();
+  }
+  applyFilter(true);
+  if (wantKey) {
+    const found = FILTERED.findIndex(f => f.key === wantKey);
+    if (found >= 0) curIdx = found;
+  } else if (wantIdx >= 1 && wantIdx <= FILTERED.length) {
+    curIdx = wantIdx - 1;
+  }
+  show();
+  bindEvents();
+}
+
+let HAS_DRAFTS = false;
+const DRAFT_ORDER = ["proposed_meta", "proposed", "ensemble_raw", "gdino", "owlv2", "ndl_layout"];
+const DRAFT_NAMES = {
+  proposed_meta: "(6) rules + presence labels", proposed: "(5) rules (image only)",
+  ensemble_raw: "(4) ensemble, no rules", gdino: "(1) Grounding DINO", owlv2: "(2) OWLv2",
+  ndl_layout: "(3) YOLOv8-NDL-Layout"
+};
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function buildDraftMenu() {
+  const names = new Set();
+  for (const p of Object.values(PREDS)) for (const [n, v] of Object.entries(p)) if (Array.isArray(v)) names.add(n);
+  const ordered = DRAFT_ORDER.filter(n => names.has(n)).concat([...names].filter(n => !DRAFT_ORDER.includes(n)).sort());
+  const s = $("modelSrc");
+  s.innerHTML = "";
+  for (const n of ordered) {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = DRAFT_NAMES[n] || n;
+    s.appendChild(o);
+  }
+  HAS_DRAFTS = ordered.length > 0;
+  if (!HAS_DRAFTS) {
+    const o = document.createElement("option");
+    o.textContent = "(no drafts)";
+    s.appendChild(o);
+  }
+  syncBlindControls();
+}
+
+function syncBlindControls() {
+  const off = blindMode || !HAS_DRAFTS;
+  $("modelSrc").disabled = off;
+  $("resetModel").disabled = off;
+  $("cycleBook").disabled = off;
+}
+
+function applyFilter(skipShow) {
+  const mode = $("filter").value;
+  const st = activeState();
+  FILTERED = FRAMES.filter(f => {
+    const bs = st.boxes[f.key] || [];
+    if (mode === "unverified") return !st.verified[f.key];
+    if (mode === "blind_done") return (BLIND_STATE.boxes[f.key] && BLIND_STATE.boxes[f.key].length > 0);
+    if (mode === "local") return !!f.has_local;
+    if (mode === "ruler") return bs.some(b => b.cls === "ruler");
+    if (mode === "chart") return bs.some(b => b.cls === "colour_chart");
+    if (mode === "slip") return bs.some(b => b.cls === "imaging_slip");
+    return true;
+  });
+  if (!FILTERED.length) FILTERED = FRAMES.slice();
+  curIdx = Math.min(curIdx, FILTERED.length - 1);
+  rebuildJump();
+  if (!skipShow) show();
+}
+
+function rebuildJump() {
+  const j = $("jump");
+  const st = activeState();
+  j.innerHTML = "";
+  FILTERED.forEach((f, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    const mark = st.verified[f.key] ? "✓ " : "";
+    o.textContent = `${i + 1}/${FILTERED.length}: ${mark}${f.key}${f.page_type ? " (" + f.page_type + ")" : ""}`;
+    j.appendChild(o);
+  });
+}
+
+function curFrame() { return FILTERED[curIdx]; }
+function scale() {
+  const f = curFrame();
+  return img.clientWidth / (f.infer_width || 1400);
+}
+
+function show() {
+  const f = curFrame();
+  if (!f) return;
+  const st = activeState();
+  sel = -1; hist = [];
+  $("jump").value = curIdx;
+  $("fin").checked = !!st.verified[f.key];
+  const globalIdx = FRAMES.findIndex(x => x.key === f.key) + 1;
+  const bParam = blindMode ? "&blind=1" : "";
+  history.replaceState(null, "", `?idx=${globalIdx}&key=${f.key}${bParam}`);
+  const modeBadge = blindMode ? `<b style="color:#c2410c">[blind mode]</b> | ` : "";
+  const meta = [`${modeBadge}<b>#${globalIdx} (${esc(f.key)})</b>`];
+  if (f.work) meta.push(`work: ${esc(f.work)}`);
+  if (f.page_type) meta.push(`page: <code>${esc(f.page_type)}</code>`);
+  if (f.width) meta.push(`canvas: ${f.width}×${f.height}`);
+  if (f.canvas_uri) meta.push(`<a href="${esc(f.canvas_uri)}" target="_blank" rel="noopener">IIIF Canvas</a>`);
+  $("metaInfo").innerHTML = meta.join(" | ");
+  img.onload = () => {
+    const p = PREDS[f.key] || {};
+    f.infer_width = p.infer_width || img.naturalWidth || 1400;
+    f.infer_height = p.infer_height || img.naturalHeight || 1000;
+    size();
+    draw();
+  };
+  img.src = f.img_src;
+  updateStats();
+}
+
+function size() {
+  const f = curFrame(), wr = $("wrap");
+  const iw = f.infer_width || 1400, ih = f.infer_height || 1000;
+  const fit = Math.min((wr.clientWidth - 24) / iw, (wr.clientHeight - 24) / ih);
+  const w = iw * fit * (+$("zoom").value);
+  img.style.width = w + "px";
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", w * ih / iw);
+}
+
+function el(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function draw(draft) {
+  svg.innerHTML = "";
+  const f = curFrame(), s = scale();
+  const st = activeState();
+  const bs = st.boxes[f.key] || [];
+  bs.forEach((b, i) => {
+    const [x1, y1, x2, y2] = b.box;
+    const c = COLORS[b.cls] || "#7a52aa";
+    const r = el("rect", {
+      x: x1 * s, y: y1 * s, width: Math.max(2, (x2 - x1) * s), height: Math.max(2, (y2 - y1) * s),
+      stroke: c, class: "b" + (i === sel ? " sel" : "")
+    });
+    r.dataset.i = i;
+    svg.appendChild(r);
+
+    const lbl = el("text", {
+      x: x1 * s + 4, y: Math.max(12, y1 * s - 4),
+      fill: c, "font-size": "12px", "font-weight": "bold",
+      style: "text-shadow: 0 0 3px #fff, 0 0 3px #fff;"
+    });
+    lbl.textContent = `${b.cls}${b.score && !blindMode ? " " + b.score.toFixed(2) : ""}`;
+    svg.appendChild(lbl);
+  });
+
+  if (sel >= 0 && bs[sel]) {
+    const [x1, y1, x2, y2] = bs[sel].box;
+    [[x1, y1, 0], [x2, y1, 1], [x2, y2, 2], [x1, y2, 3]].forEach(([cx, cy, j]) => {
+      const h = el("circle", { cx: cx * s, cy: cy * s, r: 6, class: "h" });
+      h.dataset.j = j;
+      svg.appendChild(h);
+    });
+  }
+  if (draft) {
+    svg.appendChild(el("rect", {
+      x: draft[0] * s, y: draft[1] * s, width: draft[2] * s, height: draft[3] * s, class: "draft"
+    }));
+  }
+  renderSidebar(bs);
+}
+
+function renderSidebar(bs) {
+  $("boxCount").textContent = bs.length;
+  const list = $("boxList");
+  list.innerHTML = "";
+  bs.forEach((b, i) => {
+    const d = document.createElement("div");
+    d.className = "box-item" + (i === sel ? " sel" : "");
+    const c = COLORS[b.cls] || "#7a52aa";
+    const [x1, y1, x2, y2] = b.box.map(Math.round);
+    d.innerHTML = `<span><span class="badge" style="background:${c}">${b.cls}</span> [${x1},${y1},${x2},${y2}]</span><span>${b.score && !blindMode ? b.score.toFixed(2) : "manual"}</span>`;
+    d.onclick = () => { sel = i; draw(); };
+    list.appendChild(d);
+  });
+}
+
+function computeBlindAgreement() {
+  const bKeys = Object.keys(BLIND_STATE.boxes).filter(k => (BLIND_STATE.boxes[k] || []).length > 0);
+  if (!bKeys.length) return { nImgs: 0, nBoxes: 0, meanIou: 0 };
+  let ious = [], nBoxes = 0;
+  for (const k of bKeys) {
+    const bbs = BLIND_STATE.boxes[k] || [];
+    const gbs = GOLD_STATE.boxes[k] || [];
+    for (const bb of bbs) {
+      nBoxes++;
+      let best = 0;
+      for (const gb of gbs) {
+        if (gb.cls === bb.cls) best = Math.max(best, boxIou(bb.box, gb.box));
+      }
+      if (best > 0) ious.push(best);
+    }
+  }
+  const meanIou = ious.length ? (ious.reduce((a, b) => a + b, 0) / ious.length) : 0;
+  return { nImgs: bKeys.length, nBoxes, meanIou };
+}
+
+function updateStats() {
+  const st = activeState();
+  const total = FRAMES.length;
+  const ver = FRAMES.filter(f => st.verified[f.key]).length;
+  const unmod = FRAMES.filter(f => GOLD_STATE.verified[f.key] && !GOLD_STATE.modified[f.key]).length;
+  let cCounts = { book: 0, colour_chart: 0, ruler: 0, imaging_slip: 0 };
+  FRAMES.forEach(f => {
+    (st.boxes[f.key] || []).forEach(b => { if (cCounts[b.cls] !== undefined) cCounts[b.cls]++; });
+  });
+  const blindAgr = computeBlindAgreement();
+  const nver = Object.values(GOLD_STATE.verified).filter(Boolean).length;
+  $("status").textContent = blindMode ? `Drawn blind: ${ver} / ${total}` : `Verified: ${ver} / ${total}`;
+  // In blind mode, agreement with the reviewed boxes is not shown, so that it cannot steer the drawing.
+  const agree = blindMode ? "" : `
+    Unchanged drafts: <b>${unmod} / ${nver}</b>${nver ? ` (${(100 * unmod / nver).toFixed(1)}%)` : ""}<br>
+    Drawn blind: <b>${blindAgr.nImgs}</b> images (${blindAgr.nBoxes} boxes), mean IoU with reviewed boxes <b>${blindAgr.meanIou.toFixed(3)}</b><br>`;
+  $("statsBox").innerHTML = `
+    Mode: <b>${blindMode ? "blind (no drafts)" : "review (correct drafts)"}</b><br>
+    Done: <b>${ver} / ${total}</b> images<br>${agree}
+    Boxes: <b>${cCounts.book + cCounts.colour_chart + cCounts.ruler + cCounts.imaging_slip}</b><br>
+    &nbsp;– <code>book</code>: ${cCounts.book}<br>
+    &nbsp;– <code>colour_chart</code>: ${cCounts.colour_chart}<br>
+    &nbsp;– <code>ruler</code>: ${cCounts.ruler}<br>
+    &nbsp;– <code>imaging_slip</code>: ${cCounts.imaging_slip}
+  `;
+}
+
+function pt(e) {
+  const r = svg.getBoundingClientRect(), s = scale();
+  return [(e.clientX - r.left) / s, (e.clientY - r.top) / s];
+}
+function clampBox([x1, y1, x2, y2]) {
+  const f = curFrame(), w = f.infer_width || 1400, h = f.infer_height || 1000;
+  const nx1 = Math.round(Math.max(0, Math.min(w, Math.min(x1, x2))) * 10) / 10;
+  const ny1 = Math.round(Math.max(0, Math.min(h, Math.min(y1, y2))) * 10) / 10;
+  const nx2 = Math.round(Math.max(0, Math.min(w, Math.max(x1, x2))) * 10) / 10;
+  const ny2 = Math.round(Math.max(0, Math.min(h, Math.max(y1, y2))) * 10) / 10;
+  return [nx1, ny1, nx2, ny2];
+}
+function recordModification(prevSnapshotJson) {
+  const st = activeState();
+  const k = curFrame().key;
+  hist.push(prevSnapshotJson !== undefined ? prevSnapshotJson : JSON.stringify(st.boxes[k] || []));
+  if (hist.length > 50) hist.shift();
+  st.modified[k] = true;
+}
+
+function save() {
+  const st = activeState(), f = curFrame();
+  if (f) st.sizes[f.key] = [f.infer_width, f.infer_height];
+  const endpoint = blindMode ? "/blind_state" : "/state";
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(st)
+  }).then(() => { rebuildJump(); updateStats(); });
+}
+
+function setActiveClass(cls) {
+  activeCls = cls;
+  document.querySelectorAll(".cls-btn").forEach(b => b.classList.toggle("active", b.dataset.cls === cls));
+  const st = activeState();
+  const f = curFrame(), bs = st.boxes[f.key] || [];
+  if (sel >= 0 && bs[sel] && bs[sel].cls !== cls) {
+    recordModification();
+    bs[sel].cls = cls;
+    bs[sel].label = cls;
+    draw();
+    save();
+  }
+}
+
+function bindEvents() {
+  document.querySelectorAll(".cls-btn").forEach(b => {
+    b.onclick = () => setActiveClass(b.dataset.cls);
+  });
+  $("blindMode").onchange = e => {
+    blindMode = e.target.checked;
+    syncBlindControls();
+    applyFilter(true);
+    show();
+  };
+  svg.addEventListener("mousedown", e => {
+    const st = activeState();
+    const p = pt(e), k = curFrame().key, t = e.target;
+    st.boxes[k] = st.boxes[k] || [];
+    const preSnap = JSON.stringify(st.boxes[k]);
+    if (space) {
+      const wr = $("wrap");
+      drag = { mode: "pan", x: e.clientX, y: e.clientY, sl: wr.scrollLeft, st: wr.scrollTop };
+    } else if (t.classList.contains("h")) {
+      drag = { mode: "corner", j: +t.dataset.j, orig: st.boxes[k][sel].box.slice(), preSnap, moved: false };
+    } else if (t.classList.contains("b")) {
+      sel = +t.dataset.i;
+      drag = { mode: "move", p0: p, orig: st.boxes[k][sel].box.slice(), preSnap, moved: false };
+      draw();
+    } else {
+      sel = -1;
+      drag = { mode: "new", p0: p, preSnap };
+      draw();
+    }
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", e => {
+    if (!drag) return;
+    if (drag.mode === "pan") {
+      const wr = $("wrap");
+      wr.scrollLeft = drag.sl - (e.clientX - drag.x);
+      wr.scrollTop = drag.st - (e.clientY - drag.y);
+      return;
+    }
+    const st = activeState();
+    const p = pt(e), bs = st.boxes[curFrame().key];
+    if (drag.mode === "new") {
+      draw([Math.min(drag.p0[0], p[0]), Math.min(drag.p0[1], p[1]), Math.abs(p[0] - drag.p0[0]), Math.abs(p[1] - drag.p0[1])]);
+    } else if (drag.mode === "move") {
+      const dx = p[0] - drag.p0[0], dy = p[1] - drag.p0[1];
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) drag.moved = true;
+      const [x1, y1, x2, y2] = drag.orig;
+      bs[sel].box = [x1 + dx, y1 + dy, x2 + dx, y2 + dy];
+      draw();
+    } else if (drag.mode === "corner") {
+      drag.moved = true;
+      const b = drag.orig.slice();
+      if (drag.j === 0) { b[0] = p[0]; b[1] = p[1]; }
+      if (drag.j === 1) { b[2] = p[0]; b[1] = p[1]; }
+      if (drag.j === 2) { b[2] = p[0]; b[3] = p[1]; }
+      if (drag.j === 3) { b[0] = p[0]; b[3] = p[1]; }
+      bs[sel].box = b;
+      draw();
+    }
+  });
+
+  window.addEventListener("mouseup", e => {
+    if (!drag) return;
+    if (drag.mode === "pan") { drag = null; return; }
+    const st = activeState();
+    const p = pt(e), k = curFrame().key, bs = st.boxes[k];
+    let changed = false;
+    if (drag.mode === "new") {
+      const x1 = Math.min(drag.p0[0], p[0]), y1 = Math.min(drag.p0[1], p[1]), x2 = Math.max(drag.p0[0], p[0]), y2 = Math.max(drag.p0[1], p[1]);
+      if ((x2 - x1) * scale() > 5 && (y2 - y1) * scale() > 5) {
+        recordModification(drag.preSnap);
+        bs.push({ cls: activeCls, label: activeCls, box: clampBox([x1, y1, x2, y2]), score: 1.0, source: blindMode ? "blind_manual" : "manual" });
+        sel = bs.length - 1;
+        changed = true;
+      }
+    } else if (bs[sel]) {
+      const clamped = clampBox(bs[sel].box);
+      if (drag.moved && JSON.stringify(clamped) !== JSON.stringify(drag.orig)) {
+        recordModification(drag.preSnap);
+        bs[sel].box = clamped;
+        changed = true;
+      } else {
+        bs[sel].box = drag.orig.slice();
+      }
+    }
+    drag = null;
+    draw();
+    if (changed) save();
+  });
+
+  $("prev").onclick = () => { if (curIdx > 0) { curIdx--; show(); } };
+  $("next").onclick = () => { if (curIdx < FILTERED.length - 1) { curIdx++; show(); } };
+  $("jump").onchange = e => { curIdx = +e.target.value; show(); };
+  $("filter").onchange = () => applyFilter();
+  $("zoom").onchange = () => { size(); draw(); };
+  $("finNext").onclick = () => {
+    const st = activeState();
+    st.verified[curFrame().key] = true;
+    save();
+    if (curIdx < FILTERED.length - 1) { curIdx++; show(); } else { show(); }
+    $("finNext").blur();
+  };
+  $("fin").onchange = e => { const st = activeState(); st.verified[curFrame().key] = e.target.checked; save(); };
+  $("del").onclick = () => {
+    const st = activeState();
+    const bs = st.boxes[curFrame().key] || [];
+    if (sel >= 0 && bs[sel]) { recordModification(); bs.splice(sel, 1); sel = -1; draw(); save(); }
+  };
+  $("undo").onclick = () => {
+    if (!hist.length) return;
+    const st = activeState();
+    st.boxes[curFrame().key] = JSON.parse(hist.pop());
+    sel = -1; draw(); save();
+  };
+  $("resetModel").onclick = () => {
+    if (blindMode) return;
+    const k = curFrame().key, m = $("modelSrc").value;
+    if (PREDS[k] && Array.isArray(PREDS[k][m])) {
+      recordModification();
+      GOLD_STATE.boxes[k] = JSON.parse(JSON.stringify(PREDS[k][m]));
+      if (m === "proposed" || m === "proposed_meta") GOLD_STATE.modified[k] = false;
+      sel = -1; draw(); save();
+    }
+  };
+  let bookCycleIdx = 0;
+  $("cycleBook").onclick = () => {
+    if (blindMode) return;
+    const k = curFrame().key, p = PREDS[k] || {};
+    const cands = [];
+    for (const src of ["gdino", "owlv2", "ndl_layout"]) {
+      for (const b of (p[src] || [])) {
+        if (b.cls === "book") cands.push({ box: b.box.slice(), score: b.score || 0.5, src });
+      }
+    }
+    if (!cands.length) return;
+    recordModification();
+    const pick = cands[bookCycleIdx % cands.length];
+    bookCycleIdx++;
+    const bs = (GOLD_STATE.boxes[k] || []).filter(b => b.cls !== "book");
+    bs.unshift({ cls: "book", label: "book", box: pick.box, score: pick.score, source: pick.src });
+    GOLD_STATE.boxes[k] = bs;
+    sel = 0; draw(); save();
+  };
+  $("copyUrl").onclick = () => {
+    navigator.clipboard.writeText(location.href);
+    $("copyUrl").textContent = "Copied";
+    setTimeout(() => { $("copyUrl").textContent = "Copy URL"; }, 1200);
+  };
+
+  window.addEventListener("keydown", e => {
+    if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+    if (e.key === "1") setActiveClass("book");
+    else if (e.key === "2") setActiveClass("colour_chart");
+    else if (e.key === "3") setActiveClass("ruler");
+    else if (e.key === "4") setActiveClass("imaging_slip");
+    else if (e.key === " ") { space = true; $("wrap").classList.add("pan"); e.preventDefault(); }
+    else if (e.key === "Delete" || e.key === "Backspace") { $("del").click(); e.preventDefault(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key === "z") { $("undo").click(); e.preventDefault(); }
+    else if (e.key === "ArrowRight") $("next").click();
+    else if (e.key === "ArrowLeft") $("prev").click();
+    else if (e.key === "Enter") { $("finNext").click(); e.preventDefault(); }
+  });
+
+  window.addEventListener("keyup", e => { if (e.key === " ") { space = false; $("wrap").classList.remove("pan"); } });
+
+  const bri = $("bri"), con = $("con");
+  function applyLight() { img.style.filter = `brightness(${bri.value}) contrast(${con.value})`; }
+  bri.oninput = applyLight; con.oninput = applyLight;
+  $("lightReset").onclick = () => { bri.value = 1; con.value = 1; applyLight(); };
+}
+init();
+</script>
+</body>
+</html>

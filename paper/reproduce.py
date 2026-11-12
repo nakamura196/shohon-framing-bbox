@@ -11,6 +11,11 @@ Steps:
   2. Score Configurations 1–7 against the ground truth (data/gold/gold102.csv) and check that
      every value in the summary equals paper/expected_summary.tsv (the values in the paper) to
      three decimals. The mean IoU of matched boxes is not compared (see SKIPPED).
+  3. Section 4.3: redraw the 74 images without a ruler or a chart from canvases.tsv and check that
+     they equal data/negatives/images.csv; count the false detections of Configurations 1–6 on
+     them from data/negatives/raw_detector_outputs.json and check the table against
+     paper/expected_negatives.md. Also check that the cross-validation folds of Configuration 7
+     follow from the ground truth (the cv_fold column of data/images.csv).
 
 Usage:
   python paper/reproduce.py [--data data] [--canvases path/to/canvases.tsv] [--out results/]
@@ -27,6 +32,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "src"))
+sys.path.insert(0, HERE)
 from shohon_bbox import evaluate, rules  # noqa: E402
 
 CANVASES_URL = "https://zenodo.org/api/records/24152375/files/canvases.tsv/content"
@@ -145,16 +151,38 @@ def check_scores(data, recomputed, out):
     return diff == 0
 
 
+def check_negatives(data, canvases):
+    import negatives
+    import yolo_cv
+    neg = os.path.join(data, "negatives")
+    pick, _, _ = negatives.draw(canvases, negatives.excluded_books())
+    released = [[r[c] for c in negatives.COLUMNS] for r in csv.DictReader(open(os.path.join(neg, "images.csv"), encoding="utf-8"))]
+    ok_list = pick == released
+    raw = json.load(open(os.path.join(neg, "raw_detector_outputs.json"), encoding="utf-8"))
+    got = negatives.table(raw, [r[0] for r in released])
+    ok_table = got.strip() == open(os.path.join(HERE, "expected_negatives.md"), encoding="utf-8").read().strip()
+    ok_folds = yolo_cv.make_folds(yolo_cv.read_gold(data)) == yolo_cv.released_folds(data)
+    print("step 3: images without a ruler or a chart: list "
+          + ("equals data/negatives/images.csv" if ok_list else "DIFFERS")
+          + "; table " + ("equals the paper's" if ok_table else "DIFFERS")
+          + "; cross-validation folds " + ("equal data/images.csv" if ok_folds else "DIFFER"))
+    if not ok_table:
+        print(got)
+    return ok_list and ok_table and ok_folds
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=os.path.join(ROOT, "data"))
     ap.add_argument("--canvases", help="canvases.tsv of Zenodo version 1.2 (downloaded if omitted)")
     ap.add_argument("--out", default=os.path.join(ROOT, "results"))
     a = ap.parse_args()
-    ok1, recomputed = check_configs(a.data, canvases_file(a.canvases))
+    canvases = canvases_file(a.canvases)
+    ok1, recomputed = check_configs(a.data, canvases)
     ok2 = check_scores(a.data, recomputed, a.out)
+    ok3 = check_negatives(a.data, canvases)
     print(f"report: {os.path.join(a.out, 'report.md')}")
-    sys.exit(0 if ok1 and ok2 else 1)
+    sys.exit(0 if ok1 and ok2 and ok3 else 1)
 
 
 if __name__ == "__main__":

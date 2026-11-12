@@ -35,6 +35,9 @@ Ground truth: 102 images, 299 boxes (`book` 102, `colour_chart` 76, `ruler` 111,
 | `predictions/configN_*.csv` | predictions of configurations 1–7; `predictions/configs.csv` names them |
 | `raw/raw_detector_outputs.json` | raw outputs of Grounding DINO, OWLv2 and YOLOv8-NDL-Layout for the 102 images (labels as returned by each model, scores, boxes in evaluation-image pixels); `paper/reproduce.py` recomputes configurations 1–6 from them |
 | `predictions/config7_yolo11x_meta.json` | training settings, software versions and timings of configuration 7 |
+| `negatives/images.csv` | the 74 images without a ruler or a colour chart used in Section 4.3 of the paper (one per book, drawn from the companion dataset; key, work, page type, IIIF image URL) |
+| `negatives/raw_detector_outputs.json` | raw outputs of the three detectors on these 74 images, reduced to a longer side of 1,400 pixels |
+| `negatives/excluded_books.txt` | the 300 books of the paper's sample, excluded when drawing the 74 images |
 
 `images.csv` columns: `key` (`<book id>-<4-digit canvas position>`), `order` (review order; the 102 images
 are the first 102 of a 300-image sample in that order, not a random subset), `bid` (Kokusho book id),

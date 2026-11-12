@@ -227,6 +227,9 @@ def parse_box_list(val: Any, box_fmt: str = "xyxy") -> List[Dict]:
 
 
 def load_gold(raw_gold: Any, box_fmt: str = "xyxy") -> Dict[str, List[Dict]]:
+    if isinstance(raw_gold, dict) and isinstance(raw_gold.get("boxes"), dict) and isinstance(raw_gold.get("verified"), dict):
+        # a file saved by `shohon-bbox review`: verified images only
+        raw_gold = {k: v for k, v in raw_gold["boxes"].items() if raw_gold["verified"].get(k)}
     if isinstance(raw_gold, dict):
         for k in ("gold", "annotations", "frames", "images"):
             if k in raw_gold and isinstance(raw_gold[k], (dict, list)):
@@ -541,19 +544,37 @@ def format_markdown_tables(results: Dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def read_csv_boxes(path: str) -> Dict[str, List[Dict]]:
+    """Boxes from a CSV file in the format of data/ (columns key, class, score, x1, y1, x2, y2)."""
+    import csv
+    out: Dict[str, List[Dict]] = {}
+    for r in csv.DictReader(open(path, encoding="utf-8")):
+        out.setdefault(r["key"], []).append({
+            "label": r["class"], "box": [float(r[c]) for c in ("x1", "y1", "x2", "y2")],
+            "score": float(r["score"]) if r.get("score") else 1.0})
+    return out
+
+
+def read_input(path: str, as_method: bool = False) -> Any:
+    """JSON as is; a CSV file of boxes as {key: boxes}, or {file stem: {key: boxes}} for predictions."""
+    if path.lower().endswith(".csv"):
+        boxes = read_csv_boxes(path)
+        return {os.path.splitext(os.path.basename(path))[0]: boxes} if as_method else boxes
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Evaluate 4-class BBox predictions against Gold annotations.")
-    ap.add_argument("--pred", required=True, help="Path to predictions JSON")
-    ap.add_argument("--gold", required=True, help="Path to Gold BBox JSON")
+    ap.add_argument("--pred", required=True, help="predictions: JSON, or a CSV file in the format of data/predictions/")
+    ap.add_argument("--gold", required=True, help="ground truth: JSON (also a file saved by `shohon-bbox review`), or a CSV file such as data/gold/gold102.csv")
     ap.add_argument("--out", required=True, help="Output directory for summary.json, summary.tsv, and report.md")
     ap.add_argument("--box-format", default="xyxy", choices=["xyxy", "xywh"])
     ap.add_argument("--bootstrap", type=int, default=2000)
     args = ap.parse_args(argv)
 
-    with open(args.pred) as f:
-        raw_pred = json.load(f)
-    with open(args.gold) as f:
-        raw_gold = json.load(f)
+    raw_pred = read_input(args.pred, as_method=True)
+    raw_gold = read_input(args.gold)
 
     gold_by_img = load_gold(raw_gold, args.box_format)
     pred_methods = load_predictions(raw_pred, args.box_format)

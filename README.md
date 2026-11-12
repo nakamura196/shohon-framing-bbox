@@ -17,11 +17,15 @@ limits are described in the accompanying paper (under review; see [Citation](#ci
 The repository contains
 
 - `src/shohon_bbox/` — the package: detection (`detect`), the spatial rules, IIIF input and
-  Web Annotation output, and the scoring used in the paper (`evaluate`)
+  Web Annotation output, the review interface with its blind mode (`review`), and the scoring used
+  in the paper (`evaluate`)
 - `data/` — the dataset of the paper (CC BY 4.0): ground truth for 102 images, blind annotations of
   20 images by two annotators, the raw detector outputs and the predictions of all seven configurations
-- `paper/` — the script that reproduces the paper's tables from `data/`, and one that downloads the
-  102 evaluation images from their IIIF servers and checks them against the recorded SHA-256
+- `paper/` — the scripts of the paper: `reproduce.py` reproduces its tables from `data/`;
+  `fetch_images.py` downloads the 102 evaluation images from their IIIF servers and checks them
+  against the recorded SHA-256; `yolo_cv.py` trains and cross-validates YOLO11x (Configuration 7);
+  `negatives.py` draws and scores the images without rulers or charts (Section 4.3);
+  `time_inference.py` measures inference time
 - `notebooks/try_in_colab.ipynb` — a notebook to try the detector on one image
 
 ## Install
@@ -74,11 +78,32 @@ Options:
 Detection takes about 4 seconds per image on a laptop CPU. Results on other hardware or library
 versions can differ slightly from the paper's.
 
-Scoring your own predictions against ground truth:
+## Review the boxes
+
+Drafts are rarely all right. `shohon-bbox review` opens a local web page on which each draft can
+be corrected (move, resize, delete, add or relabel boxes, then mark the image as verified). The
+drafts of all configurations stay available from a menu. In blind mode no draft or score is shown
+and boxes are drawn on a blank image into a separate file, to measure how much the drafts bias
+the result or to collect a second annotator's boxes. The ground truth of the paper was made this way.
 
 ```
-shohon-bbox evaluate --pred predictions.json --gold gold.json --out results/
+shohon-bbox detect images/*.jpg --format raw > raw.json      # drafts for a folder of images
+shohon-bbox review images/ --drafts raw.json --out annotations.json
 ```
+
+Open the printed address (http://127.0.0.1:8795/). Every change is saved at once to
+`annotations.json` (blind mode: `blind_annotations.json`). Boxes are in pixels of the image used
+for detection; the file records that size for each image.
+
+## Score
+
+```
+shohon-bbox evaluate --pred predictions.json --gold annotations.json --out results/
+```
+
+Ground truth and predictions can be JSON (a file saved by `review` counts verified images only)
+or CSV files in the format of `data/`, for example
+`shohon-bbox evaluate --pred data/predictions/config5_proposed.csv --gold data/gold/gold102.csv --out results/`.
 
 ## What it does and does not do
 
@@ -98,8 +123,19 @@ python paper/reproduce.py
 
 This recomputes Configurations 1–6 from the stored raw detector outputs, checks them box for box
 against `data/predictions/`, scores all seven configurations against the ground truth, and checks
-every value against the paper. It downloads one file (26 MB) of the companion dataset from Zenodo
-for Configuration 6. The check also runs in CI.
+every value against the paper. It also redraws the 74 images without rulers or charts of Section
+4.3, recounts the false detections on them, and checks the cross-validation folds of
+Configuration 7. It downloads one file (26 MB) of the companion dataset from Zenodo. The check also
+runs in CI.
+
+Steps that need the images, the models or a GPU are not run in CI; each script's header gives the
+commands and the software versions of the paper's run:
+
+- `python paper/fetch_images.py --out images/` — the 102 evaluation images
+- `python paper/yolo_cv.py prepare --images-dir images/ --kit kit/`, then `train` on a GPU —
+  Configuration 7 (the paper's out-of-fold predictions are `data/predictions/config7_yolo11x.csv`)
+- `python paper/negatives.py fetch --dir neg/` and `detect` — the raw outputs of Section 4.3
+- `python paper/time_inference.py --images-dir images/` — inference time on the CPU
 
 ## Citation
 

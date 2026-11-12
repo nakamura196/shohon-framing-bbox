@@ -54,26 +54,34 @@ class Detectors:
         self.ow_mod = Owlv2ForObjectDetection.from_pretrained(p).eval()
         self.ndl = YOLO(model_path("ndl"))
 
-    def run(self, im):
-        """Raw outputs for one RGB PIL image, in the format of data/raw/raw_detector_outputs.json."""
+    def gdino(self, im):
         torch = self.torch
         w, h = im.size
-        e = {"w": w, "h": h}
         inp = self.gd_proc(images=im, text=GD_PROMPT, return_tensors="pt")
         with torch.no_grad():
             out = self.gd_mod(**inp)
         res = self.gd_proc.post_process_grounded_object_detection(
             out, inp.input_ids, threshold=GD_THRESHOLD, text_threshold=GD_TEXT_THRESHOLD, target_sizes=[(h, w)])[0]
         lbls = res.get("text_labels", res.get("labels", []))
-        e["gdino"] = [{"label": str(l), "score": round(float(s), 4), "box": _round_box(b)}
-                      for b, s, l in zip(res["boxes"].tolist(), res["scores"].tolist(), lbls)]
+        return [{"label": str(l), "score": round(float(s), 4), "box": _round_box(b)}
+                for b, s, l in zip(res["boxes"].tolist(), res["scores"].tolist(), lbls)]
+
+    def owlv2(self, im):
+        torch = self.torch
+        w, h = im.size
         inp = self.ow_proc(text=OW_TEXTS, images=im, return_tensors="pt")
         with torch.no_grad():
             out = self.ow_mod(**inp)
         res = self.ow_proc.post_process_grounded_object_detection(out, threshold=OW_THRESHOLD, target_sizes=[(h, w)])[0]
-        e["owlv2"] = [{"label": OW_TEXTS[0][int(l)], "score": round(float(s), 4), "box": _round_box(b)}
-                      for b, s, l in zip(res["boxes"].tolist(), res["scores"].tolist(), res["labels"].tolist())]
+        return [{"label": OW_TEXTS[0][int(l)], "score": round(float(s), 4), "box": _round_box(b)}
+                for b, s, l in zip(res["boxes"].tolist(), res["scores"].tolist(), res["labels"].tolist())]
+
+    def ndl_layout(self, im):
         r = self.ndl.predict(im, conf=NDL_CONF, verbose=False)[0]
-        e["ndl_layout"] = [{"label": r.names[int(b.cls[0])], "score": round(float(b.conf[0]), 4),
-                            "box": _round_box(b.xyxy[0].tolist())} for b in r.boxes]
-        return e
+        return [{"label": r.names[int(b.cls[0])], "score": round(float(b.conf[0]), 4),
+                 "box": _round_box(b.xyxy[0].tolist())} for b in r.boxes]
+
+    def run(self, im):
+        """Raw outputs for one RGB PIL image, in the format of data/raw/raw_detector_outputs.json."""
+        return {"w": im.size[0], "h": im.size[1], "gdino": self.gdino(im), "owlv2": self.owlv2(im),
+                "ndl_layout": self.ndl_layout(im)}
