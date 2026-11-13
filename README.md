@@ -2,6 +2,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nakamura196/shohon-framing-bbox/blob/main/notebooks/try_in_colab.ipynb)
 [![CI](https://github.com/nakamura196/shohon-framing-bbox/actions/workflows/ci.yml/badge.svg)](https://github.com/nakamura196/shohon-framing-bbox/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24181285.svg)](https://doi.org/10.5281/zenodo.24181285)
 
 ![Boxes drawn by shohon-bbox: book (blue), colour chart (green), ruler (red) and imaging slip (orange)](docs/example.jpg)
 
@@ -148,7 +149,9 @@ commands and the software versions of the paper's run:
 
 ## Citation
 
-See `CITATION.cff`. The paper is under review; its reference will be added here.
+See `CITATION.cff`. The software is archived on Zenodo: https://doi.org/10.5281/zenodo.24181285
+(all versions; version 0.1.0, used in the paper: https://doi.org/10.5281/zenodo.24181286).
+The paper is under review; its reference will be added here.
 
 ## Licence
 

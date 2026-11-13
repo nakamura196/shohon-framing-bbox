@@ -3,6 +3,7 @@ message: "If you use this software or data, please cite it as below."
 title: "shohon-framing-bbox: boxes for books, colour charts, rulers and imaging slips in digitized book images"
 type: software
 version: 0.1.0
+doi: 10.5281/zenodo.24181285
 date-released: 2026-11-13
 license: MIT
 repository-code: "https://github.com/nakamura196/shohon-framing-bbox"
